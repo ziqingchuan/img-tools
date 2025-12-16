@@ -1,94 +1,219 @@
 <template>
   <div class="image-compressor">
-    <h2>图片压缩</h2>
-    <p>上传图片进行压缩，优化加载速度</p>
+    <Row :gutter="24">
+      <Col :span="24">
+        <Card title="上传图片" style="margin-bottom: 24px;">
+          <Upload.Dragger
+            v-model:fileList="fileList"
+            :before-upload="beforeUpload"
+            :show-upload-list="false"
+            accept="image/*"
+            @drop="handleDrop"
+          >
+            <p class="ant-upload-drag-icon">
+              <InboxOutlined style="font-size: 48px; color: #1890ff;" />
+            </p>
+            <p class="ant-upload-text">点击或拖拽图片到此区域上传</p>
+            <p class="ant-upload-hint">支持 JPG、PNG、WebP 等格式</p>
+          </Upload.Dragger>
+          
+          <div v-if="file" style="margin-top: 16px;">
+            <Descriptions :column="2" bordered size="small">
+              <Descriptions.Item label="文件名">{{ file.name }}</Descriptions.Item>
+              <Descriptions.Item label="文件大小">{{ formatFileSize(file.size) }}</Descriptions.Item>
+              <Descriptions.Item label="图片格式">{{ file.type.split('/')[1]?.toUpperCase() }}</Descriptions.Item>
+              <Descriptions.Item label="最后修改">{{ new Date(file.lastModified).toLocaleString() }}</Descriptions.Item>
+            </Descriptions>
+          </div>
+        </Card>
+      </Col>
+    </Row>
 
-    <div
-        class="upload-area"
-        @dragover.prevent="dragOver = true"
-        @dragleave="dragOver = false"
-        @drop.prevent="handleDrop"
-        @click="openFileDialog()"
-        :class="{ 'drag-over': dragOver }"
-    >
-      <input
-          type="file"
-          accept="image/*"
-          @change="handleFileChange"
-          ref="fileInput"
-          class="file-input"
-      />
-      <p v-if="!file">拖放图片到此处或点击选择文件</p>
-      <div v-else class="file-info">
-        <p>已选择: {{ file.name }}</p>
-        <p>大小: {{ (file.size / 1024).toFixed(2) }} KB</p>
-      </div>
-    </div>
+    <Row :gutter="24" v-if="file">
+      <Col :span="8">
+        <Card title="压缩设置">
+          <Form layout="vertical">
+            <Form.Item label="压缩质量">
+              <Slider 
+                v-model:value="quality" 
+                :min="0.1" 
+                :max="1" 
+                :step="0.1"
+                :tooltip-formatter="(value) => `${Math.round(value * 100)}%`"
+              />
+              <div style="text-align: center; margin-top: 8px;">
+                <Tag color="blue">{{ Math.round(quality * 100) }}%</Tag>
+              </div>
+            </Form.Item>
+            
+            <Form.Item label="最大宽度 (像素)">
+              <InputNumber 
+                v-model:value="maxWidth" 
+                :min="100" 
+                :max="4000" 
+                :step="100"
+                style="width: 100%;"
+              />
+            </Form.Item>
+            
+            <Form.Item>
+              <Button 
+                type="primary" 
+                block 
+                :loading="isProcessing"
+                @click="compress"
+                :disabled="!file"
+              >
+                <CompressOutlined />
+                {{ isProcessing ? '压缩中...' : '开始压缩' }}
+              </Button>
+            </Form.Item>
+          </Form>
+        </Card>
+      </Col>
+      
+      <Col :span="16">
+        <Card title="预览对比" v-if="originalImageUrl">
+          <Row :gutter="16">
+            <Col :span="12">
+              <div class="preview-container">
+                <div class="preview-header">
+                  <Text strong>原始图片</Text>
+                  <Tag v-if="file">{{ formatFileSize(file.size) }}</Tag>
+                </div>
+                <div class="preview-image-wrapper">
+                  <Image :src="originalImageUrl" :preview="true" />
+                </div>
+              </div>
+            </Col>
+            <Col :span="12" v-if="result">
+              <div class="preview-container">
+                <div class="preview-header">
+                  <Text strong>压缩后</Text>
+                  <Tag color="green">{{ formatFileSize(result.size) }}</Tag>
+                </div>
+                <div class="preview-image-wrapper">
+                  <Image :src="resultImageUrl" :preview="true" />
+                </div>
+                <div style="margin-top: 12px; text-align: center;">
+                  <Statistic 
+                    title="压缩率" 
+                    :value="compressionRatio" 
+                    suffix="%" 
+                    :value-style="{ color: '#3f8600' }"
+                  />
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </Card>
+      </Col>
+    </Row>
 
-    <div class="controls" v-if="file">
-
-      <button @click="compress" :disabled="isProcessing" class="action-button">
-        {{ isProcessing ? '处理中...' : '开始压缩' }}
-      </button>
-    </div>
-
-    <div class="result" v-if="result">
-      <h3>压缩结果</h3>
-      <div class="comparison">
-        <div class="comparison-item">
-          <h4>原始图片</h4>
-          <img :src="originalImageUrl" class="preview-image"  alt="原始图片"/>
-          <p v-if="file">{{ (file.size / 1024).toFixed(2) }} KB</p>
-        </div>
-        <div class="comparison-item">
-          <h4>压缩后</h4>
-          <img :src="resultImageUrl" class="preview-image"  alt="压缩后图片"/>
-          <p>{{ (result.size / 1024).toFixed(2) }} KB</p>
-          <p v-if="file">压缩率: {{ ((1 - result.size / file.size) * 100).toFixed(2) }}%</p>
-        </div>
-      </div>
-      <button @click="downloadResult" class="action-button">下载压缩图片</button>
-    </div>
+    <Row v-if="result" style="margin-top: 24px;">
+      <Col :span="24">
+        <Card title="下载结果">
+          <Space>
+            <Button type="primary" @click="downloadResult" size="large">
+              <DownloadOutlined />
+              下载压缩图片
+            </Button>
+            <Button @click="reset">
+              <ReloadOutlined />
+              重新选择
+            </Button>
+          </Space>
+        </Card>
+      </Col>
+    </Row>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { 
+  Row, 
+  Col, 
+  Card, 
+  Upload, 
+  Button, 
+  Form, 
+  Slider, 
+  InputNumber, 
+  Tag, 
+  Image, 
+  Typography, 
+  Descriptions,
+  Statistic,
+  Space,
+  message
+} from 'ant-design-vue'
+import {
+  InboxOutlined,
+  CompressOutlined,
+  DownloadOutlined,
+  ReloadOutlined
+} from '@ant-design/icons-vue'
 import compressImage from '../utils/compressImage'
-const fileInput = ref<HTMLInputElement | null>(null)
-const file = ref<File | null>()
+
+const { Text } = Typography
+
+const fileList = ref([])
+const file = ref<File | null>(null)
 const originalImageUrl = ref('')
-const result = ref<File | null>()
+const result = ref<File | null>(null)
 const resultImageUrl = ref('')
 const isProcessing = ref(false)
-const dragOver = ref(false)
 
 // 压缩参数
 const quality = ref(0.7)
 const maxWidth = ref(1920)
 
-const handleFileChange = (e: Event) => {
-  const target = e.target as HTMLInputElement
-  if (target.files && target.files[0]) {
-    processFile(target.files[0])
+const compressionRatio = computed(() => {
+  if (!file.value || !result.value) return 0
+  return Math.round((1 - result.value.size / file.value.size) * 100)
+})
+
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const beforeUpload = (file: File) => {
+  const isImage = file.type.startsWith('image/')
+  if (!isImage) {
+    message.error('只能上传图片文件!')
+    return false
   }
+  
+  const isLt10M = file.size / 1024 / 1024 < 10
+  if (!isLt10M) {
+    message.error('图片大小不能超过 10MB!')
+    return false
+  }
+  
+  processFile(file)
+  return false // 阻止自动上传
 }
 
 const handleDrop = (e: DragEvent) => {
-  dragOver.value = false
   if (e.dataTransfer?.files && e.dataTransfer.files[0]) {
-    processFile(e.dataTransfer.files[0])
+    const droppedFile = e.dataTransfer.files[0]
+    if (droppedFile.type.startsWith('image/')) {
+      processFile(droppedFile)
+    } else {
+      message.error('只能上传图片文件!')
+    }
   }
-}
-
-// 添加打开文件对话框的方法
-const openFileDialog = () => {
-  fileInput.value?.click()
 }
 
 const processFile = (selectedFile: File) => {
   file.value = selectedFile
   result.value = null
+  resultImageUrl.value = ''
 
   // 生成预览URL
   const reader = new FileReader()
@@ -104,9 +229,9 @@ const compress = async () => {
   isProcessing.value = true
   try {
     const compressedFile = await compressImage(
-        file.value,
-        quality.value,
-        maxWidth.value
+      file.value,
+      quality.value,
+      maxWidth.value
     )
 
     result.value = compressedFile
@@ -117,9 +242,11 @@ const compress = async () => {
       resultImageUrl.value = e.target?.result as string
     }
     reader.readAsDataURL(compressedFile)
+    
+    message.success(`压缩完成！文件大小减少了 ${compressionRatio.value}%`)
   } catch (error) {
     console.error('压缩失败:', error)
-    alert('压缩失败，请重试')
+    message.error('压缩失败，请重试')
   } finally {
     isProcessing.value = false
   }
@@ -136,97 +263,47 @@ const downloadResult = () => {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+  message.success('下载开始')
+}
+
+const reset = () => {
+  file.value = null
+  result.value = null
+  originalImageUrl.value = ''
+  resultImageUrl.value = ''
+  fileList.value = []
 }
 </script>
 
 <style scoped>
-.image-compressor {
+.preview-container {
   text-align: center;
 }
 
-h2 {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.upload-area {
-  border: 2px dashed #ccc;
-  border-radius: 8px;
-  padding: 2rem;
-  margin: 1rem auto;
-  max-width: 500px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.upload-area.drag-over {
-  border-color: #0077ff;
-  background-color: #f0f7ff;
-}
-
-.file-input {
-  display: none;
-}
-
-.file-info {
-  margin-top: 1rem;
-}
-
-.controls {
-  margin: 2rem auto;
-  max-width: 500px;
-  text-align: center;
-}
-
-.control-group label {
-  display: inline-block;
-  width: 150px;
-  margin-right: 1rem;
-}
-
-.action-button {
-  background-color: #0077ff;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s;
-  margin-top: 1rem;
-}
-
-.action-button:hover {
-  background-color: #0055cc;
-}
-
-.action-button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-.result {
-  margin-top: 2rem;
-}
-
-.comparison {
+.preview-header {
   display: flex;
-  justify-content: center;
-  gap: 2rem;
-  margin: 2rem 0;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.comparison-item {
-  flex: 1;
-  min-width: 250px;
+.preview-image-wrapper {
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fafafa;
 }
 
-.preview-image {
-  max-width: 100%;
-  max-height: 300px;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  margin: 1rem 0;
+.preview-image-wrapper :deep(.ant-image) {
+  width: 100%;
+  display: block;
+}
+
+.preview-image-wrapper :deep(.ant-image img) {
+  width: 100%;
+  height: 200px;
+  object-fit: contain;
 }
 </style>

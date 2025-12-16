@@ -1,79 +1,188 @@
 <template>
   <div class="image-converter">
-    <h2>图片格式转换</h2>
-    <p>上传图片并选择目标格式进行转换</p>
+    <Row :gutter="24">
+      <Col :span="24">
+        <Card title="上传图片" style="margin-bottom: 24px;">
+          <Upload.Dragger
+            v-model:fileList="fileList"
+            :before-upload="beforeUpload"
+            :show-upload-list="false"
+            accept="image/*"
+            @drop="handleDrop"
+          >
+            <p class="ant-upload-drag-icon">
+              <SwapOutlined style="font-size: 48px; color: #1890ff;" />
+            </p>
+            <p class="ant-upload-text">点击或拖拽图片到此区域上传</p>
+            <p class="ant-upload-hint">支持 JPG、PNG、WebP、BMP 等格式转换</p>
+          </Upload.Dragger>
+          
+          <div v-if="file" style="margin-top: 16px;">
+            <Descriptions :column="2" bordered size="small">
+              <Descriptions.Item label="文件名">{{ file.name }}</Descriptions.Item>
+              <Descriptions.Item label="文件大小">{{ formatFileSize(file.size) }}</Descriptions.Item>
+              <Descriptions.Item label="当前格式">
+                <Tag color="blue">{{ originalFormat }}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="最后修改">{{ new Date(file.lastModified).toLocaleString() }}</Descriptions.Item>
+            </Descriptions>
+          </div>
+        </Card>
+      </Col>
+    </Row>
 
-    <div
-        class="upload-area"
-        @dragover.prevent="dragOver = true"
-        @dragleave="dragOver = false"
-        @drop.prevent="handleDrop"
-        @click="openFileDialog"
-        :class="{ 'drag-over': dragOver }"
-    >
-      <input
-          type="file"
-          accept="image/*"
-          @change="handleFileChange"
-          ref="fileInput"
-          class="file-input"
-      />
-      <p v-if="!file">拖放图片到此处或点击选择文件</p>
-      <div v-else class="file-info">
-        <p>已选择: {{ file.name }}</p>
-        <p>格式: {{ file.type.split('/')[1]?.toUpperCase() }}</p>
-      </div>
-    </div>
+    <Row :gutter="24" v-if="file">
+      <Col :span="8">
+        <Card title="转换设置">
+          <Form layout="vertical">
+            <Form.Item label="目标格式">
+              <Select v-model:value="targetFormat" size="large">
+                <Select.Option value="jpeg">
+                  <Space>
+                    <FileOutlined />
+                    JPEG
+                  </Space>
+                </Select.Option>
+                <Select.Option value="png">
+                  <Space>
+                    <FileOutlined />
+                    PNG
+                  </Space>
+                </Select.Option>
+                <Select.Option value="webp">
+                  <Space>
+                    <FileOutlined />
+                    WebP
+                  </Space>
+                </Select.Option>
+              </Select>
+            </Form.Item>
+            
+            <Form.Item label="输出质量" v-if="targetFormat === 'jpeg' || targetFormat === 'webp'">
+              <Slider 
+                v-model:value="quality" 
+                :min="0.1" 
+                :max="1" 
+                :step="0.1"
+                :tooltip-formatter="(value) => `${Math.round(value * 100)}%`"
+              />
+              <div style="text-align: center; margin-top: 8px;">
+                <Tag color="green">{{ Math.round(quality * 100) }}%</Tag>
+              </div>
+            </Form.Item>
+            
+            <Form.Item>
+              <Button 
+                type="primary" 
+                block 
+                :loading="isProcessing"
+                @click="convert"
+                :disabled="!file || targetFormat === originalFormat.toLowerCase()"
+              >
+                <SwapOutlined />
+                {{ isProcessing ? '转换中...' : '开始转换' }}
+              </Button>
+              <div v-if="targetFormat === originalFormat.toLowerCase()" style="margin-top: 8px;">
+                <Text type="warning">
+                  <ExclamationCircleOutlined />
+                  目标格式与原格式相同
+                </Text>
+              </div>
+            </Form.Item>
+          </Form>
+        </Card>
+      </Col>
+      
+      <Col :span="16">
+        <Card title="预览对比" v-if="originalImageUrl">
+          <Row :gutter="16">
+            <Col :span="12">
+              <div class="preview-container">
+                <div class="preview-header">
+                  <Text strong>原始图片</Text>
+                  <Tag color="blue">{{ originalFormat }}</Tag>
+                </div>
+                <div class="preview-image-wrapper">
+                  <Image :src="originalImageUrl" :preview="true" />
+                </div>
+                <div style="margin-top: 8px; text-align: center;">
+                  <Text type="secondary">{{ formatFileSize(file.size) }}</Text>
+                </div>
+              </div>
+            </Col>
+            <Col :span="12" v-if="result">
+              <div class="preview-container">
+                <div class="preview-header">
+                  <Text strong>转换后</Text>
+                  <Tag color="green">{{ convertedFormat.toUpperCase() }}</Tag>
+                </div>
+                <div class="preview-image-wrapper">
+                  <Image :src="resultImageUrl" :preview="true" />
+                </div>
+                <div style="margin-top: 8px; text-align: center;">
+                  <Text type="secondary">{{ formatFileSize(result.size) }}</Text>
+                </div>
+              </div>
+            </Col>
+          </Row>
+        </Card>
+      </Col>
+    </Row>
 
-    <div class="controls" v-if="file">
-      <div class="control-group">
-        <label>目标格式:</label>
-        <select v-model="targetFormat">
-          <option value="jpeg">JPEG</option>
-          <option value="png">PNG</option>
-          <option value="webp">WebP</option>
-        </select>
-      </div>
-
-      <div class="control-group" v-if="targetFormat === 'jpeg'">
-        <label>JPEG 质量 (0-1):</label>
-        <input type="range" min="0" max="1" step="0.1" v-model="quality" />
-        <span>{{ quality }}</span>
-      </div>
-
-      <button @click="convert" :disabled="isProcessing" class="action-button">
-        {{ isProcessing ? '转换中...' : '开始转换' }}
-      </button>
-    </div>
-
-    <div class="result" v-if="result">
-      <h3>转换结果</h3>
-      <div class="comparison">
-        <div class="comparison-item">
-          <h4>原始图片 ({{ originalFormat }})</h4>
-          <img :src="originalImageUrl" class="preview-image" />
-        </div>
-        <div class="comparison-item">
-          <h4>转换后 ({{ String(convertedFormat).toUpperCase() }})</h4>
-          <img :src="resultImageUrl" class="preview-image" />
-        </div>
-      </div>
-      <button @click="downloadResult" class="action-button">下载转换后的图片</button>
-    </div>
+    <Row v-if="result" style="margin-top: 24px;">
+      <Col :span="24">
+        <Card title="下载结果">
+          <Space>
+            <Button type="primary" @click="downloadResult" size="large">
+              <DownloadOutlined />
+              下载转换后的图片
+            </Button>
+            <Button @click="reset">
+              <ReloadOutlined />
+              重新选择
+            </Button>
+          </Space>
+        </Card>
+      </Col>
+    </Row>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { 
+  Row, 
+  Col, 
+  Card, 
+  Upload, 
+  Button, 
+  Form, 
+  Slider, 
+  Select, 
+  Tag, 
+  Image, 
+  Typography, 
+  Descriptions,
+  Space,
+  message
+} from 'ant-design-vue'
+import {
+  SwapOutlined,
+  DownloadOutlined,
+  ReloadOutlined,
+  FileOutlined,
+  ExclamationCircleOutlined
+} from '@ant-design/icons-vue'
 import convertImage from '../utils/convertImage'
 
-const fileInput = ref<HTMLInputElement | null>(null)
-const file = ref<File | null>()
+const { Text } = Typography
+
+const fileList = ref([])
+const file = ref<File | null>(null)
 const originalImageUrl = ref('')
 const result = ref<Blob | null>(null)
 const resultImageUrl = ref('')
 const isProcessing = ref(false)
-const dragOver = ref(false)
 const targetFormat = ref<'jpeg' | 'png' | 'webp'>('jpeg')
 const convertedFormat = ref('')
 const quality = ref(0.8)
@@ -83,27 +192,46 @@ const originalFormat = computed(() => {
   return file.value.type.split('/')[1]?.toUpperCase() || ''
 })
 
-const handleFileChange = (e: Event) => {
-  const target = e.target as HTMLInputElement
-  if (target.files && target.files[0]) {
-    processFile(target.files[0])
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const beforeUpload = (file: File) => {
+  const isImage = file.type.startsWith('image/')
+  if (!isImage) {
+    message.error('只能上传图片文件!')
+    return false
   }
+  
+  const isLt10M = file.size / 1024 / 1024 < 10
+  if (!isLt10M) {
+    message.error('图片大小不能超过 10MB!')
+    return false
+  }
+  
+  processFile(file)
+  return false
 }
 
 const handleDrop = (e: DragEvent) => {
-  dragOver.value = false
   if (e.dataTransfer?.files && e.dataTransfer.files[0]) {
-    processFile(e.dataTransfer.files[0])
+    const droppedFile = e.dataTransfer.files[0]
+    if (droppedFile.type.startsWith('image/')) {
+      processFile(droppedFile)
+    } else {
+      message.error('只能上传图片文件!')
+    }
   }
-}
-// 添加打开文件对话框的方法
-const openFileDialog = () => {
-  fileInput.value?.click()
 }
 
 const processFile = (selectedFile: File) => {
   file.value = selectedFile
   result.value = null
+  resultImageUrl.value = ''
 
   // 生成预览URL
   const reader = new FileReader()
@@ -119,18 +247,19 @@ const convert = async () => {
   isProcessing.value = true
   try {
     const convertedBlob = await convertImage(
-        file.value,
-        targetFormat.value,
-        quality.value
+      file.value,
+      targetFormat.value,
+      quality.value
     )
 
     result.value = convertedBlob
     convertedFormat.value = targetFormat.value
-    // 生成结果预览URL
     resultImageUrl.value = URL.createObjectURL(convertedBlob)
+    
+    message.success(`转换完成！格式已从 ${originalFormat.value} 转换为 ${targetFormat.value.toUpperCase()}`)
   } catch (error) {
     console.error('转换失败:', error)
-    alert('转换失败，请重试')
+    message.error('转换失败，请重试')
   } finally {
     isProcessing.value = false
   }
@@ -146,107 +275,47 @@ const downloadResult = () => {
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
+  message.success('下载开始')
+}
+
+const reset = () => {
+  file.value = null
+  result.value = null
+  originalImageUrl.value = ''
+  resultImageUrl.value = ''
+  fileList.value = []
 }
 </script>
 
 <style scoped>
-.image-converter {
+.preview-container {
   text-align: center;
 }
 
-h2 {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-.upload-area {
-  border: 2px dashed #ccc;
-  border-radius: 8px;
-  padding: 2rem;
-  margin: 1rem auto;
-  max-width: 500px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.upload-area.drag-over {
-  border-color: #0077ff;
-  background-color: #f0f7ff;
-}
-
-.file-input {
-  display: none;
-}
-
-.file-info {
-  margin-top: 1rem;
-}
-
-.controls {
-  margin: 2rem auto;
-  max-width: 500px;
-  text-align: center;
-}
-
-.control-group {
-  margin-bottom: 1rem;
-}
-
-.control-group label {
-  display: inline-block;
-  width: 150px;
-  margin-right: 1rem;
-}
-
-.control-group select {
-  padding: 0.5rem;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-}
-
-.action-button {
-  background-color: #0077ff;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s;
-  margin-top: 1rem;
-}
-
-.action-button:hover {
-  background-color: #0055cc;
-}
-
-.action-button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-.result {
-  margin-top: 2rem;
-}
-
-.comparison {
+.preview-header {
   display: flex;
-  justify-content: center;
-  gap: 2rem;
-  margin: 2rem 0;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.comparison-item {
-  flex: 1;
-  min-width: 250px;
+.preview-image-wrapper {
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fafafa;
 }
 
-.preview-image {
-  max-width: 100%;
-  max-height: 300px;
-  border: 1px solid #eee;
-  border-radius: 4px;
-  margin: 1rem 0;
+.preview-image-wrapper :deep(.ant-image) {
+  width: 100%;
+  display: block;
+}
+
+.preview-image-wrapper :deep(.ant-image img) {
+  width: 100%;
+  height: 200px;
+  object-fit: contain;
 }
 </style>
