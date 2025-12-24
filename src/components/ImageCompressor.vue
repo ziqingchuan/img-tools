@@ -1,7 +1,7 @@
 <template>
   <div class="image-compressor">
-    <Row :gutter="24">
-      <Col :span="24">
+    <Row :gutter="[16, 16]">
+      <Col :xs="24" :sm="24" :md="24" :lg="24">
         <Card title="上传图片" style="margin-bottom: 24px;">
           <Upload.Dragger
             v-model:fileList="fileList"
@@ -29,8 +29,8 @@
       </Col>
     </Row>
 
-    <Row :gutter="24" v-if="file">
-      <Col :span="8">
+    <Row :gutter="[16, 16]" v-if="file">
+      <Col :xs="24" :sm="24" :md="8" :lg="8">
         <Card title="压缩设置">
           <Form layout="vertical">
             <Form.Item label="压缩质量">
@@ -72,10 +72,10 @@
         </Card>
       </Col>
       
-      <Col :span="16">
+      <Col :xs="24" :sm="24" :md="16" :lg="16">
         <Card title="预览对比" v-if="originalImageUrl">
-          <Row :gutter="16">
-            <Col :span="12">
+          <Row :gutter="[16, 16]">
+            <Col :xs="24" :sm="12" :md="12" :lg="12">
               <div class="preview-container">
                 <div class="preview-header">
                   <Text strong>原始图片</Text>
@@ -86,7 +86,7 @@
                 </div>
               </div>
             </Col>
-            <Col :span="12" v-if="result">
+            <Col :xs="24" :sm="12" :md="12" :lg="12" v-if="result">
               <div class="preview-container">
                 <div class="preview-header">
                   <Text strong>压缩后</Text>
@@ -110,11 +110,11 @@
       </Col>
     </Row>
 
-    <Row v-if="result" style="margin-top: 24px;">
-      <Col :span="24">
+    <Row v-if="result" :gutter="[16, 16]">
+      <Col :xs="24" :sm="24" :md="24" :lg="24">
         <Card title="下载结果">
           <Space>
-            <Button type="primary" @click="downloadResult" size="large">
+            <Button type="primary" @click="downloadResult">
               <DownloadOutlined />
               下载压缩图片
             </Button>
@@ -276,6 +276,10 @@ const reset = () => {
 </script>
 
 <style scoped>
+.image-compressor {
+  width: 100%;
+}
+
 .preview-container {
   text-align: center;
 }
@@ -287,6 +291,8 @@ const reset = () => {
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid #f0f0f0;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .preview-image-wrapper {
@@ -305,5 +311,22 @@ const reset = () => {
   width: 100%;
   height: 200px;
   object-fit: contain;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .preview-image-wrapper :deep(.ant-image img) {
+    height: 180px;
+  }
+}
+
+@media (max-width: 576px) {
+  .preview-image-wrapper :deep(.ant-image img) {
+    height: 150px;
+  }
+  
+  .preview-header {
+    font-size: 14px;
+  }
 }
 </style>

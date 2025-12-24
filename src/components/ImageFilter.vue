@@ -1,7 +1,7 @@
 <template>
   <div class="image-filter">
-    <Row :gutter="24">
-      <Col :span="24">
+    <Row :gutter="[16, 16]">
+      <Col :xs="24" :sm="24" :md="24" :lg="24">
         <Card title="上传图片" style="margin-bottom: 24px;">
           <Upload.Dragger
             v-model:fileList="fileList"
@@ -29,8 +29,8 @@
       </Col>
     </Row>
 
-    <Row :gutter="24" v-if="file">
-      <Col :span="8">
+    <Row :gutter="[16, 16]" v-if="file">
+      <Col :xs="24" :sm="24" :md="8" :lg="8">
         <Card title="滤镜设置">
           <Form layout="vertical">
             <Form.Item label="预设滤镜">
@@ -125,10 +125,10 @@
         </Card>
       </Col>
       
-      <Col :span="16">
+      <Col :xs="24" :sm="24" :md="16" :lg="16">
         <Card title="实时预览" v-if="originalImageUrl">
-          <Row :gutter="16">
-            <Col :span="12">
+          <Row :gutter="[16, 16]">
+            <Col :xs="24" :sm="24" :md="24" :lg="24">
               <div class="preview-container">
                 <div class="preview-header">
                   <Text strong>原始图片</Text>
@@ -138,7 +138,7 @@
                 </div>
               </div>
             </Col>
-            <Col :span="12">
+            <Col :xs="24" :sm="24" :md="24" :lg="24">
               <div class="preview-container">
                 <div class="preview-header">
                   <Text strong>滤镜效果</Text>
@@ -158,15 +158,15 @@
       </Col>
     </Row>
 
-    <Row v-if="result" style="margin-top: 24px;">
-      <Col :span="24">
+    <Row v-if="result" :gutter="[16, 16]">
+      <Col :xs="24" :sm="24" :md="24" :lg="24">
         <Card title="导出结果">
           <div class="result-preview">
             <Image :src="resultImageUrl" :preview="true" style="max-width: 300px;" />
           </div>
           <div style="margin-top: 16px;">
             <Space>
-              <Button type="primary" @click="downloadResult" size="large">
+              <Button type="primary" @click="downloadResult">
                 <DownloadOutlined />
                 下载处理后的图片
               </Button>
@@ -450,6 +450,10 @@ const reset = () => {
 </script>
 
 <style scoped>
+.image-filter {
+  width: 100%;
+}
+
 .preview-container {
   text-align: center;
 }
@@ -461,6 +465,8 @@ const reset = () => {
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid #f0f0f0;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .preview-image-wrapper {
@@ -485,5 +491,30 @@ const reset = () => {
   padding: 16px;
   background: #fafafa;
   border-radius: 6px;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .preview-image-wrapper {
+    height: 200px;
+  }
+  
+  .result-preview {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 576px) {
+  .preview-image-wrapper {
+    height: 150px;
+  }
+  
+  .preview-header {
+    font-size: 14px;
+  }
+  
+  .result-preview {
+    padding: 8px;
+  }
 }
 </style>

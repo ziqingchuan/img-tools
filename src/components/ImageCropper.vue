@@ -1,7 +1,7 @@
 <template>
   <div class="image-cropper">
-    <Row :gutter="24">
-      <Col :span="24">
+    <Row :gutter="[16, 16]">
+      <Col :xs="24" :sm="24" :md="24" :lg="24">
         <Card title="上传图片" style="margin-bottom: 24px;">
           <Upload.Dragger
             v-model:fileList="fileList"
@@ -29,8 +29,8 @@
       </Col>
     </Row>
 
-    <Row :gutter="24" v-if="file">
-      <Col :span="8">
+    <Row :gutter="[16, 16]" v-if="file">
+      <Col :xs="24" :sm="24" :md="8" :lg="8">
         <Card title="裁剪设置">
           <Form layout="vertical">
             <Form.Item label="裁剪比例">
@@ -83,7 +83,7 @@
         </Card>
       </Col>
       
-      <Col :span="16">
+      <Col :xs="24" :sm="24" :md="16" :lg="16">
         <Card title="裁剪预览" v-if="originalImageUrl">
           <div class="crop-container">
             <canvas 
@@ -110,11 +110,11 @@
       </Col>
     </Row>
 
-    <Row v-if="result" style="margin-top: 24px;">
-      <Col :span="24">
+    <Row v-if="result" :gutter="[16, 16]">
+      <Col :xs="24" :sm="24" :md="24" :lg="24">
         <Card title="下载结果">
           <Space>
-            <Button type="primary" @click="downloadResult" size="large">
+            <Button type="primary" @click="downloadResult">
               <DownloadOutlined />
               下载裁剪图片
             </Button>
@@ -430,11 +430,21 @@ const reset = () => {
 </script>
 
 <style scoped>
+.image-cropper {
+  width: 100%;
+}
+
 .crop-container {
   text-align: center;
   padding: 16px;
   background: #fafafa;
   border-radius: 6px;
+  overflow-x: auto;
+}
+
+.crop-container canvas {
+  max-width: 100%;
+  height: auto;
 }
 
 .result-preview {
@@ -447,5 +457,28 @@ const reset = () => {
 .result-preview :deep(.ant-image) {
   max-width: 200px;
   max-height: 200px;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .crop-container {
+    padding: 12px;
+  }
+  
+  .result-preview :deep(.ant-image) {
+    max-width: 150px;
+    max-height: 150px;
+  }
+}
+
+@media (max-width: 576px) {
+  .crop-container {
+    padding: 8px;
+  }
+  
+  .crop-container canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
 }
 </style>
